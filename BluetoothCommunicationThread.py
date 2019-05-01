@@ -5,6 +5,7 @@ def run():
 
     return
 
+
 def getCommuicationData():
     print("Bluetooth communication data")
     return
