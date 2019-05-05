@@ -4,12 +4,12 @@ import threading
 
 try:
     sensorThread = threading.Thread(target=SensorThread.run)
-    bluetoothThread = threading.Thread(target=BluetoothCommunicationThread.run)
+   # bluetoothThread = threading.Thread(target=BluetoothCommunicationThread.run)
 
     sensorThread.daemon = True
-    bluetoothThread.daemon = True
+   # bluetoothThread.daemon = True
     sensorThread.start()
-    bluetoothThread.start()
+   # bluetoothThread.start()
 
     
 except:
