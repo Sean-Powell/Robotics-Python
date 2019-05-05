@@ -1,25 +1,38 @@
 import time
-import RPi.GPIO
+import RPi.GPIO as GPIO
+import threading
 
-latestGPSData = 0
-latestUltraSonicData = [0, 0]
+PIN_TRIGGER_A = 7
+PIN_ECHO_A = 11
+PIN_TRIGGER_B = 31
+PIN_ECHO_B = 29
 
-UltraSonicA_Trig = 11
-UltraSonicA_Echo = 12
-UltraSonicB_Trig = 15
-UltraSonicB_Echo = 16
+GPIO.setmode(GPIO.BOARD)
+GPIO.setup(PIN_TRIGGER_A, GPIO.OUT)
+GPIO.setup(PIN_ECHO_A, GPIO.IN)
+GPIO.setup(PIN_TRIGGER_B, GPIO.OUT)
+GPIO.setup(PIN_ECHO_B, GPIO.IN)
+GPIO.output(PIN_TRIGGER_A, GPIO.LOW)
+GPIO.output(PIN_TRIGGER_B, GPIO.LOW)
+
+numberOfDistanceReadingsToTake = 3
+
+lock = threading.Lock()
+latestDistance = []
+
+global getGPSData
+global getLatestDistances
+
 
 def run():
     print("run")
     sensorLoop()
 
 
-
 def sensorLoop():
     print("Sensor Loop")
     gpsDataRetrieval()
     ultraSonicDataRetrieval()
-    time.sleep(1)
     return
 
 
@@ -29,30 +42,57 @@ def gpsDataRetrieval():
 
 
 def ultraSonicDataRetrieval():
-    print("US Data")
-    GPIO.output(UltraSonicA_Trig, GPIO.HIGH)
-    time.sleep(0.00001)
-    GPIO.output(UltraSonicA_Trig, GPIO.LOW)
+    print("Waiting for sensor to settle")
+    time.sleep(0.2)
+    print("Calculating distance")
 
-    while GPIO.input(UltraSonicA_Echo) == 0:
-        pulse_start_time = time.time()
-    while GPIO.input(UltraSonicA_Echo) == 1:
-        pulse_end_time = time.time()
+    totalDistanceA = 0
+    totalDistanceB = 0
 
-    pulse_duration = pulse_end_time - pulse_start_time
-    distanceA = round(pulse_duration * 17150, 2)
+    for i in range(numberOfDistanceReadingsToTake):
+        GPIO.output(PIN_TRIGGER_A, GPIO.HIGH)
+        time.sleep(0.00001)
+        GPIO.output(PIN_TRIGGER_A, GPIO.LOW)
+        while GPIO.input(PIN_ECHO_A) == 0:
+            pulse_start_time = time.time()
+        while GPIO.input(PIN_ECHO_A) == 1:
+            pulse_end_time = time.time()
+        pulse_duration = pulse_end_time - pulse_start_time
 
-    GPIO.output(UltraSonicB_Trig, GPIO.HIGH)
-    time.sleep(0.00001)
-    GPIO.output(UltraSonicB_Trig, GPIO.LOW)
+        distanceA = round(pulse_duration * 17150, 2)
 
-    while GPIO.input(UltraSonicB_Echo) == 0:
-        pulse_start_time = time.time()
-    while GPIO.input(UltraSonicB_Echo) == 1:
-        pulse_end_time = time.time()
+        print("Distance A:", distanceA, "cm")
 
-    pulse_duration = pulse_end_time - pulse_start_time
-    distanceB = round(pulse_duration * 17150, 2)
+        GPIO.output(PIN_TRIGGER_B, GPIO.HIGH)
+        time.sleep(0.00001)
+        GPIO.output(PIN_TRIGGER_B, GPIO.LOW)
+        while GPIO.input(PIN_ECHO_B) == 0:
+            pulse_start_time = time.time()
+        while GPIO.input(PIN_ECHO_B) == 1:
+            pulse_end_time = time.time()
+        pulse_duration = pulse_end_time - pulse_start_time
 
-    print("A:", distanceA, "B:", distanceB)
-    return distanceA, distanceB
+        distanceB = round(pulse_duration * 17150, 2)
+        print("Distance B:", distanceB, "cm")
+
+        totalDistanceA += distanceA
+        totalDistanceB += distanceB
+
+    averageA = totalDistanceA / numberOfDistanceReadingsToTake
+    averageB = totalDistanceB / numberOfDistanceReadingsToTake
+
+    return averageA, averageB
+
+
+def getGPSData():
+    return
+
+
+def setUpdatedDistances(newDistances):
+    global latestDistance
+    with lock:
+        latestDistance = newDistances
+
+
+def getLatestDistances():
+    return latestDistance
